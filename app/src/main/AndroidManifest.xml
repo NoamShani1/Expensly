@@ -12,6 +12,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Expensly">
         <activity
+            android:name=".expense_tracker.Login"
+            android:exported="false" />
+        <activity
             android:name=".expense_tracker.MainActivity"
             android:exported="true">
             <intent-filter>
