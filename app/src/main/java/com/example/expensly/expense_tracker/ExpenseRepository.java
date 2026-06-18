@@ -1,8 +1,8 @@
 package com.example.expensly.expense_tracker;
 
 import android.content.Context;
+import android.database.Cursor;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -65,19 +65,10 @@ public class ExpenseRepository {
 
     /**
      * Returns a map of { category -> total amount } for use by the pie chart.
-     *
-     * Example output:
-     *   { "Food": 120.50, "Transport": 45.00, "Entertainment": 80.00 }
+     * Fetched directly via a SQL aggregate query for efficiency.
      */
     public Map<String, Double> getCategoryTotals() {
-        List<Expense> all = dbHelper.getAllExpenses();
-        Map<String, Double> totals = new LinkedHashMap<>();
-
-        for (Expense e : all) {
-            String cat = e.getCategory();
-            totals.put(cat, totals.getOrDefault(cat, 0.0) + e.getAmount());
-        }
-        return totals;
+        return dbHelper.getCategoryTotals();
     }
 
     /** Returns the grand total of all expenses. */
@@ -118,5 +109,31 @@ public class ExpenseRepository {
     /** Wipes all expenses. Returns the number of rows removed. */
     public int deleteAllExpenses() {
         return dbHelper.deleteAllExpenses();
+    }
+
+    // ── BUDGET ────────────────────────────────────────────────────────────────
+
+    /** Sets or updates the current budget. */
+    public boolean setBudget(double amount, String period) {
+        return dbHelper.setBudget(amount, period) != -1;
+    }
+
+    /** Returns the current budget, or null if none set. */
+    public Budget getBudget() {
+        try (Cursor cursor = dbHelper.getBudget()) {
+            if (cursor != null && cursor.moveToFirst()) {
+                double amount = cursor.getDouble(cursor.getColumnIndexOrThrow(ExpenseDbHelper.COL_BUDGET_AMT));
+                String period = cursor.getString(cursor.getColumnIndexOrThrow(ExpenseDbHelper.COL_BUDGET_PER));
+                return new Budget(amount, period);
+            }
+        }
+        return null;
+    }
+
+    /** Returns the remaining budget (Budget - Total Expenses). */
+    public double getSavings() {
+        Budget b = getBudget();
+        if (b == null) return 0;
+        return b.getAmount() - getTotalAmount();
     }
 }
