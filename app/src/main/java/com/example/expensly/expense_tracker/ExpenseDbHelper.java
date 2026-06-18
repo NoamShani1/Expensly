@@ -1,4 +1,4 @@
-package com.example.expensly.expense_tracker;
+package com.example.expense_tracker;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -19,7 +19,7 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
 
     // ── Database metadata ─────────────────────────────────────────────────────
     private static final String DB_NAME    = "expense_tracker.db";
-    private static final int    DB_VERSION = 1;
+    private static final int    DB_VERSION = 2;
 
     // ── Table & column names ──────────────────────────────────────────────────
     public static final String TABLE_EXPENSES  = "expenses";
@@ -29,6 +29,10 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public static final String COL_CATEGORY    = "category";
     public static final String COL_DATE        = "date";
     public static final String COL_NOTE        = "note";
+
+    public static final String TABLE_BUDGET    = "budget";
+    public static final String COL_BUDGET_AMT  = "budget_amount";
+    public static final String COL_BUDGET_PER  = "budget_period";
 
     // ── Singleton ─────────────────────────────────────────────────────────────
     private static ExpenseDbHelper instance;
@@ -48,23 +52,37 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String createTable =
+        String createExpensesTable =
                 "CREATE TABLE " + TABLE_EXPENSES + " ("
-                + COL_ID       + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                + COL_TITLE    + " TEXT NOT NULL, "
-                + COL_AMOUNT   + " REAL NOT NULL, "
-                + COL_CATEGORY + " TEXT NOT NULL, "
-                + COL_DATE     + " TEXT NOT NULL, "
-                + COL_NOTE     + " TEXT"
-                + ");";
-        db.execSQL(createTable);
+                        + COL_ID       + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                        + COL_TITLE    + " TEXT NOT NULL, "
+                        + COL_AMOUNT   + " REAL NOT NULL, "
+                        + COL_CATEGORY + " TEXT NOT NULL, "
+                        + COL_DATE     + " TEXT NOT NULL, "
+                        + COL_NOTE     + " TEXT"
+                        + ");";
+        db.execSQL(createExpensesTable);
+
+        String createBudgetTable =
+                "CREATE TABLE " + TABLE_BUDGET + " ("
+                        + COL_ID         + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                        + COL_BUDGET_AMT + " REAL NOT NULL, "
+                        + COL_BUDGET_PER + " TEXT NOT NULL"
+                        + ");";
+        db.execSQL(createBudgetTable);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Simple migration: drop & recreate (extend with ALTER TABLE for production)
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_EXPENSES);
-        onCreate(db);
+        if (oldVersion < 2) {
+            String createBudgetTable =
+                    "CREATE TABLE " + TABLE_BUDGET + " ("
+                            + COL_ID         + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                            + COL_BUDGET_AMT + " REAL NOT NULL, "
+                            + COL_BUDGET_PER + " TEXT NOT NULL"
+                            + ");";
+            db.execSQL(createBudgetTable);
+        }
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
@@ -77,9 +95,7 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public long insertExpense(Expense expense) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv  = toContentValues(expense);
-        long newId = db.insert(TABLE_EXPENSES, null, cv);
-        db.close();
-        return newId;
+        return db.insert(TABLE_EXPENSES, null, cv);
     }
 
     // ── READ ──────────────────────────────────────────────────────────────────
@@ -91,20 +107,18 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         List<Expense> list = new ArrayList<>();
         SQLiteDatabase db  = getReadableDatabase();
 
-        Cursor cursor = db.query(
+        try (Cursor cursor = db.query(
                 TABLE_EXPENSES,
                 null,
                 null, null, null, null,
                 COL_DATE + " DESC"
-        );
-
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                list.add(cursorToExpense(cursor));
-            } while (cursor.moveToNext());
-            cursor.close();
+        )) {
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    list.add(cursorToExpense(cursor));
+                } while (cursor.moveToNext());
+            }
         }
-        db.close();
         return list;
     }
 
@@ -114,21 +128,18 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public Expense getExpenseById(long id) {
         SQLiteDatabase db = getReadableDatabase();
 
-        Cursor cursor = db.query(
+        try (Cursor cursor = db.query(
                 TABLE_EXPENSES,
                 null,
                 COL_ID + " = ?",
                 new String[]{String.valueOf(id)},
                 null, null, null
-        );
-
-        Expense expense = null;
-        if (cursor != null && cursor.moveToFirst()) {
-            expense = cursorToExpense(cursor);
-            cursor.close();
+        )) {
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursorToExpense(cursor);
+            }
         }
-        db.close();
-        return expense;
+        return null;
     }
 
     /**
@@ -138,22 +149,20 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         List<Expense> list = new ArrayList<>();
         SQLiteDatabase db  = getReadableDatabase();
 
-        Cursor cursor = db.query(
+        try (Cursor cursor = db.query(
                 TABLE_EXPENSES,
                 null,
                 COL_CATEGORY + " = ?",
                 new String[]{category},
                 null, null,
                 COL_DATE + " DESC"
-        );
-
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                list.add(cursorToExpense(cursor));
-            } while (cursor.moveToNext());
-            cursor.close();
+        )) {
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    list.add(cursorToExpense(cursor));
+                } while (cursor.moveToNext());
+            }
         }
-        db.close();
         return list;
     }
 
@@ -164,14 +173,12 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getReadableDatabase();
         double total = 0;
 
-        Cursor cursor = db.rawQuery(
-                "SELECT SUM(" + COL_AMOUNT + ") FROM " + TABLE_EXPENSES, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            total = cursor.getDouble(0);
-            cursor.close();
+        try (Cursor cursor = db.rawQuery(
+                "SELECT SUM(" + COL_AMOUNT + ") FROM " + TABLE_EXPENSES, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                total = cursor.getDouble(0);
+            }
         }
-        db.close();
         return total;
     }
 
@@ -186,14 +193,12 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv  = toContentValues(expense);
 
-        int rows = db.update(
+        return db.update(
                 TABLE_EXPENSES,
                 cv,
                 COL_ID + " = ?",
                 new String[]{String.valueOf(expense.getId())}
         );
-        db.close();
-        return rows;
     }
 
     // ── DELETE ────────────────────────────────────────────────────────────────
@@ -206,13 +211,11 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public int deleteExpense(long id) {
         SQLiteDatabase db = getWritableDatabase();
 
-        int rows = db.delete(
+        return db.delete(
                 TABLE_EXPENSES,
                 COL_ID + " = ?",
                 new String[]{String.valueOf(id)}
         );
-        db.close();
-        return rows;
     }
 
     /**
@@ -222,9 +225,24 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
      */
     public int deleteAllExpenses() {
         SQLiteDatabase db = getWritableDatabase();
-        int rows = db.delete(TABLE_EXPENSES, null, null);
-        db.close();
-        return rows;
+        return db.delete(TABLE_EXPENSES, null, null);
+    }
+
+    // ── BUDGET ────────────────────────────────────────────────────────────────
+
+    public long setBudget(double amount, String period) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_BUDGET, null, null); // Only one budget allowed
+
+        ContentValues cv = new ContentValues();
+        cv.put(COL_BUDGET_AMT, amount);
+        cv.put(COL_BUDGET_PER, period);
+        return db.insert(TABLE_BUDGET, null, cv);
+    }
+
+    public Cursor getBudget() {
+        SQLiteDatabase db = getReadableDatabase();
+        return db.query(TABLE_BUDGET, null, null, null, null, null, null);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
