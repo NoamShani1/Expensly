@@ -1,3 +1,21 @@
 <resources>
-    <string name="app_name">Expense_tracker</string>
+    <string name="app_name">Expensly</string>
+    <string name="total_label">Total: €%.2f</string>
+    <string name="budget_label">Budget: €%.2f (%s)</string>
+    <string name="savings_label">Remaining: €%.2f</string>
+    <string name="expense_deleted">Expense deleted</string>
+    <string name="budget_amount_hint">Amount</string>
+    <string name="set_budget_title">Set Budget</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="budget_saved">Budget saved</string>
+    <string name="dialog_edit_title">Edit Expense</string>
+    <string name="dialog_add_title">Add Expense</string>
+    <string name="validation_required">Please fill required fields</string>
+    <string name="invalid_amount">Invalid amount</string>
+    <string name="budget_exceeded">Budget exceeded!</string>
+    <string name="expense_updated">Expense updated</string>
+    <string name="update_failed">Update failed</string>
+    <string name="expense_added">Expense added</string>
+    <string name="add_failed">Add failed</string>
 </resources>

@@ -106,6 +106,43 @@ public class PieChartView extends View {
     /**
      * Feeds the chart with category totals from the repository.
      * Call {@link #startAnimation()} afterwards to animate it in.
+     */
+    public void setData(List<Expense> expenses, double savings) {
+        slices.clear();
+
+        double totalExpenses = 0;
+        for (Expense e : expenses) {
+            totalExpenses += e.getAmount();
+        }
+
+        double totalWithSavings = totalExpenses + (savings > 0 ? savings : 0);
+        if (totalWithSavings <= 0) {
+            invalidate();
+            return;
+        }
+
+        int colorIndex = 0;
+        for (Expense e : expenses) {
+            float sweep = (float) (e.getAmount() / totalWithSavings * 360f);
+            int color = SLICE_COLORS[colorIndex % SLICE_COLORS.length];
+            slices.add(new Slice(e.getTitle(), e.getAmount(), sweep, color));
+            colorIndex++;
+        }
+
+        if (savings > 0) {
+            float sweep = (float) (savings / totalWithSavings * 360f);
+            int color = 0xFF03DAC5; // Teal for savings
+            slices.add(new Slice("Savings", savings, sweep, color));
+        }
+
+        // build center label
+        centerLabel = String.format("€%.2f", totalExpenses);
+        invalidate();
+    }
+
+    /**
+     * Feeds the chart with category totals from the repository.
+     * Call {@link #startAnimation()} afterwards to animate it in.
      *
      * @param data map of { category name -> total amount }
      */
