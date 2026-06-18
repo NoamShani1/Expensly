@@ -1,271 +1,146 @@
-package com.example.expense_tracker;
+package com.example.expensly.expense_tracker;
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Low-level SQLite helper.
- * Handles database creation, upgrades, and raw CRUD operations.
+ * Repository — the single source of truth for expense data.
  *
- * Use {@link ExpenseRepository} for all app-level access — it wraps this class.
+ * All Activities / Fragments should talk to this class, never to
+ * {@link ExpenseDbHelper} directly. This keeps the UI code clean and
+ * makes the data layer easy to swap out (e.g. Room, remote API) later.
  */
-public class ExpenseDbHelper extends SQLiteOpenHelper {
+public class ExpenseRepository {
 
-    // ── Database metadata ─────────────────────────────────────────────────────
-    private static final String DB_NAME    = "expense_tracker.db";
-    private static final int    DB_VERSION = 2;
-
-    // ── Table & column names ──────────────────────────────────────────────────
-    public static final String TABLE_EXPENSES  = "expenses";
-    public static final String COL_ID          = "_id";
-    public static final String COL_TITLE       = "title";
-    public static final String COL_AMOUNT      = "amount";
-    public static final String COL_CATEGORY    = "category";
-    public static final String COL_DATE        = "date";
-    public static final String COL_NOTE        = "note";
-
-    public static final String TABLE_BUDGET    = "budget";
-    public static final String COL_BUDGET_AMT  = "budget_amount";
-    public static final String COL_BUDGET_PER  = "budget_period";
+    private final ExpenseDbHelper dbHelper;
 
     // ── Singleton ─────────────────────────────────────────────────────────────
-    private static ExpenseDbHelper instance;
+    private static ExpenseRepository instance;
 
-    public static synchronized ExpenseDbHelper getInstance(Context context) {
+    public static synchronized ExpenseRepository getInstance(Context context) {
         if (instance == null) {
-            instance = new ExpenseDbHelper(context.getApplicationContext());
+            instance = new ExpenseRepository(context.getApplicationContext());
         }
         return instance;
     }
 
-    private ExpenseDbHelper(Context context) {
-        super(context, DB_NAME, null, DB_VERSION);
-    }
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
-    @Override
-    public void onCreate(SQLiteDatabase db) {
-        String createExpensesTable =
-                "CREATE TABLE " + TABLE_EXPENSES + " ("
-                        + COL_ID       + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                        + COL_TITLE    + " TEXT NOT NULL, "
-                        + COL_AMOUNT   + " REAL NOT NULL, "
-                        + COL_CATEGORY + " TEXT NOT NULL, "
-                        + COL_DATE     + " TEXT NOT NULL, "
-                        + COL_NOTE     + " TEXT"
-                        + ");";
-        db.execSQL(createExpensesTable);
-
-        String createBudgetTable =
-                "CREATE TABLE " + TABLE_BUDGET + " ("
-                        + COL_ID         + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                        + COL_BUDGET_AMT + " REAL NOT NULL, "
-                        + COL_BUDGET_PER + " TEXT NOT NULL"
-                        + ");";
-        db.execSQL(createBudgetTable);
-    }
-
-    @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < 2) {
-            String createBudgetTable =
-                    "CREATE TABLE " + TABLE_BUDGET + " ("
-                            + COL_ID         + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                            + COL_BUDGET_AMT + " REAL NOT NULL, "
-                            + COL_BUDGET_PER + " TEXT NOT NULL"
-                            + ");";
-            db.execSQL(createBudgetTable);
-        }
+    private ExpenseRepository(Context context) {
+        dbHelper = ExpenseDbHelper.getInstance(context);
     }
 
     // ── CREATE ────────────────────────────────────────────────────────────────
 
     /**
-     * Inserts a new expense row.
-     *
-     * @return the row id of the newly inserted expense, or -1 on failure.
+     * Adds a new expense and returns it with its database-assigned id populated.
+     * Returns null if the insert failed.
      */
-    public long insertExpense(Expense expense) {
-        SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv  = toContentValues(expense);
-        return db.insert(TABLE_EXPENSES, null, cv);
+    public Expense addExpense(String title, double amount,
+                              String category, String date, String note) {
+        Expense expense = new Expense(title, amount, category, date, note);
+        long newId = dbHelper.insertExpense(expense);
+        if (newId == -1) return null;
+        expense.setId(newId);
+        return expense;
     }
 
     // ── READ ──────────────────────────────────────────────────────────────────
 
-    /**
-     * Returns all expenses ordered by date descending.
-     */
+    /** Returns every expense, sorted by date descending. */
     public List<Expense> getAllExpenses() {
-        List<Expense> list = new ArrayList<>();
-        SQLiteDatabase db  = getReadableDatabase();
-
-        try (Cursor cursor = db.query(
-                TABLE_EXPENSES,
-                null,
-                null, null, null, null,
-                COL_DATE + " DESC"
-        )) {
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    list.add(cursorToExpense(cursor));
-                } while (cursor.moveToNext());
-            }
-        }
-        return list;
+        return dbHelper.getAllExpenses();
     }
 
-    /**
-     * Returns a single expense by its id, or null if not found.
-     */
+    /** Returns a single expense by id, or null if not found. */
     public Expense getExpenseById(long id) {
-        SQLiteDatabase db = getReadableDatabase();
-
-        try (Cursor cursor = db.query(
-                TABLE_EXPENSES,
-                null,
-                COL_ID + " = ?",
-                new String[]{String.valueOf(id)},
-                null, null, null
-        )) {
-            if (cursor != null && cursor.moveToFirst()) {
-                return cursorToExpense(cursor);
-            }
-        }
-        return null;
+        return dbHelper.getExpenseById(id);
     }
 
-    /**
-     * Returns all expenses that belong to a given category.
-     */
+    /** Returns all expenses for a specific category. */
     public List<Expense> getExpensesByCategory(String category) {
-        List<Expense> list = new ArrayList<>();
-        SQLiteDatabase db  = getReadableDatabase();
-
-        try (Cursor cursor = db.query(
-                TABLE_EXPENSES,
-                null,
-                COL_CATEGORY + " = ?",
-                new String[]{category},
-                null, null,
-                COL_DATE + " DESC"
-        )) {
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    list.add(cursorToExpense(cursor));
-                } while (cursor.moveToNext());
-            }
-        }
-        return list;
+        return dbHelper.getExpensesByCategory(category);
     }
 
     /**
-     * Returns the total sum of all expense amounts.
+     * Returns a map of { category -> total amount } for use by the pie chart.
+     *
+     * Example output:
+     *   { "Food": 120.50, "Transport": 45.00, "Entertainment": 80.00 }
      */
-    public double getTotalAmount() {
-        SQLiteDatabase db = getReadableDatabase();
-        double total = 0;
+    public Map<String, Double> getCategoryTotals() {
+        List<Expense> all = dbHelper.getAllExpenses();
+        Map<String, Double> totals = new LinkedHashMap<>();
 
-        try (Cursor cursor = db.rawQuery(
-                "SELECT SUM(" + COL_AMOUNT + ") FROM " + TABLE_EXPENSES, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                total = cursor.getDouble(0);
-            }
+        for (Expense e : all) {
+            String cat = e.getCategory();
+            totals.put(cat, totals.getOrDefault(cat, 0.0) + e.getAmount());
         }
-        return total;
+        return totals;
+    }
+
+    /** Returns the grand total of all expenses. */
+    public double getTotalAmount() {
+        return dbHelper.getTotalAmount();
     }
 
     // ── UPDATE ────────────────────────────────────────────────────────────────
 
     /**
-     * Updates an existing expense row.
+     * Updates an existing expense.
      *
-     * @return number of rows affected (should be 1 on success, 0 if not found).
+     * @param id       id of the expense to update
+     * @param title    new title
+     * @param amount   new amount
+     * @param category new category
+     * @param date     new date (YYYY-MM-DD)
+     * @param note     new note (may be null)
+     * @return true if the update was successful, false otherwise.
      */
-    public int updateExpense(Expense expense) {
-        SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv  = toContentValues(expense);
-
-        return db.update(
-                TABLE_EXPENSES,
-                cv,
-                COL_ID + " = ?",
-                new String[]{String.valueOf(expense.getId())}
-        );
+    public boolean updateExpense(long id, String title, double amount,
+                                 String category, String date, String note) {
+        Expense expense = new Expense(id, title, amount, category, date, note);
+        return dbHelper.updateExpense(expense) > 0;
     }
 
     // ── DELETE ────────────────────────────────────────────────────────────────
 
     /**
-     * Deletes an expense by id.
+     * Deletes the expense with the given id.
      *
-     * @return number of rows deleted (should be 1 on success).
+     * @return true if a row was deleted, false if no matching row was found.
      */
-    public int deleteExpense(long id) {
-        SQLiteDatabase db = getWritableDatabase();
-
-        return db.delete(
-                TABLE_EXPENSES,
-                COL_ID + " = ?",
-                new String[]{String.valueOf(id)}
-        );
+    public boolean deleteExpense(long id) {
+        return dbHelper.deleteExpense(id) > 0;
     }
 
-    /**
-     * Deletes ALL expense records. Use with caution.
-     *
-     * @return number of rows deleted.
-     */
+    /** Wipes all expenses. Returns the number of rows removed. */
     public int deleteAllExpenses() {
-        SQLiteDatabase db = getWritableDatabase();
-        return db.delete(TABLE_EXPENSES, null, null);
+        return dbHelper.deleteAllExpenses();
     }
 
     // ── BUDGET ────────────────────────────────────────────────────────────────
 
-    public long setBudget(double amount, String period) {
-        SQLiteDatabase db = getWritableDatabase();
-        db.delete(TABLE_BUDGET, null, null); // Only one budget allowed
-
-        ContentValues cv = new ContentValues();
-        cv.put(COL_BUDGET_AMT, amount);
-        cv.put(COL_BUDGET_PER, period);
-        return db.insert(TABLE_BUDGET, null, cv);
+    public boolean setBudget(double amount, String period) {
+        return dbHelper.setBudget(amount, period) != -1;
     }
 
-    public Cursor getBudget() {
-        SQLiteDatabase db = getReadableDatabase();
-        return db.query(TABLE_BUDGET, null, null, null, null, null, null);
+    public Budget getBudget() {
+        try (Cursor cursor = dbHelper.getBudget()) {
+            if (cursor != null && cursor.moveToFirst()) {
+                double amount = cursor.getDouble(cursor.getColumnIndexOrThrow(ExpenseDbHelper.COL_BUDGET_AMT));
+                String period = cursor.getString(cursor.getColumnIndexOrThrow(ExpenseDbHelper.COL_BUDGET_PER));
+                return new Budget(amount, period);
+            }
+        }
+        return null;
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    /** Maps an Expense object to a ContentValues map (excludes id). */
-    private ContentValues toContentValues(Expense e) {
-        ContentValues cv = new ContentValues();
-        cv.put(COL_TITLE,    e.getTitle());
-        cv.put(COL_AMOUNT,   e.getAmount());
-        cv.put(COL_CATEGORY, e.getCategory());
-        cv.put(COL_DATE,     e.getDate());
-        cv.put(COL_NOTE,     e.getNote() != null ? e.getNote() : "");
-        return cv;
-    }
-
-    /** Maps a Cursor row to an Expense object. */
-    private Expense cursorToExpense(Cursor cursor) {
-        long   id       = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID));
-        String title    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TITLE));
-        double amount   = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_AMOUNT));
-        String category = cursor.getString(cursor.getColumnIndexOrThrow(COL_CATEGORY));
-        String date     = cursor.getString(cursor.getColumnIndexOrThrow(COL_DATE));
-        String note     = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTE));
-        return new Expense(id, title, amount, category, date, note);
+    public double getSavings() {
+        Budget b = getBudget();
+        if (b == null) return 0;
+        return b.getAmount() - getTotalAmount();
     }
 }
