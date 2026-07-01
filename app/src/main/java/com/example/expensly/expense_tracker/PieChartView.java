@@ -12,31 +12,16 @@ import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * A fully custom animated pie-chart View.
- *
- * Usage in XML:
- * <pre>
- *   &lt;com.example.expense_tracker.PieChartView
- *       android:id="@+id/pieChartView"
- *       android:layout_width="300dp"
- *       android:layout_height="300dp" /&gt;
- * </pre>
- *
- * Usage in Java:
- * <pre>
- *   pieChartView.setData(repository.getCategoryTotals());
- *   pieChartView.startAnimation();
- * </pre>
- */
+
 public class PieChartView extends View {
 
     // ── Animation ─────────────────────────────────────────────────────────────
     private static final int ANIMATION_DURATION_MS = 1200;
-    /** 0.0 = nothing drawn, 1.0 = fully drawn. Driven by ValueAnimator. */
+
     private float animationProgress = 1f;
 
     // ── Data ──────────────────────────────────────────────────────────────────
@@ -103,48 +88,22 @@ public class PieChartView extends View {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /**
-     * Feeds the chart with category totals from the repository.
-     * Call {@link #startAnimation()} afterwards to animate it in.
-     */
     public void setData(List<Expense> expenses, double savings) {
-        slices.clear();
-
-        double totalExpenses = 0;
+        Map<String, Double> data = new LinkedHashMap<>();
         for (Expense e : expenses) {
-            totalExpenses += e.getAmount();
+            // Using title + category to keep it unique if needed
+            String key = e.getTitle() + " (" + e.getCategory() + ")";
+            data.put(key, e.getAmount());
         }
-
-        double totalWithSavings = totalExpenses + (savings > 0 ? savings : 0);
-        if (totalWithSavings <= 0) {
-            invalidate();
-            return;
-        }
-
-        int colorIndex = 0;
-        for (Expense e : expenses) {
-            float sweep = (float) (e.getAmount() / totalWithSavings * 360f);
-            int color = SLICE_COLORS[colorIndex % SLICE_COLORS.length];
-            slices.add(new Slice(e.getTitle(), e.getAmount(), sweep, color));
-            colorIndex++;
-        }
-
         if (savings > 0) {
-            float sweep = (float) (savings / totalWithSavings * 360f);
-            int color = 0xFF03DAC5; // Teal for savings
-            slices.add(new Slice("Savings", savings, sweep, color));
+            data.put("Savings", savings);
         }
-
-        // build center label
-        centerLabel = String.format("€%.2f", totalExpenses);
-        invalidate();
+        setData(data);
     }
 
     /**
      * Feeds the chart with category totals from the repository.
      * Call {@link #startAnimation()} afterwards to animate it in.
-     *
-     * @param data map of { category name -> total amount }
      */
     public void setData(Map<String, Double> data) {
         slices.clear();
@@ -156,16 +115,28 @@ public class PieChartView extends View {
         double total = 0;
         for (double v : data.values()) total += v;
 
+        if (total <= 0) {
+            slices.clear();
+            centerLabel = "€0.00";
+            invalidate();
+            return;
+        }
+
         int colorIndex = 0;
         for (Map.Entry<String, Double> entry : data.entrySet()) {
             float sweep = (float) (entry.getValue() / total * 360f);
-            int   color = SLICE_COLORS[colorIndex % SLICE_COLORS.length];
+            int color;
+            if (entry.getKey().equals("Savings")) {
+                color = 0xFF4CAF50; // Distinct Green for Savings
+            } else {
+                color = SLICE_COLORS[colorIndex % SLICE_COLORS.length];
+                colorIndex++;
+            }
             slices.add(new Slice(entry.getKey(), entry.getValue(), sweep, color));
-            colorIndex++;
         }
 
         // build center label
-        centerLabel = String.format("€%.2f", total);
+        centerLabel = String.format(java.util.Locale.getDefault(), "€%.2f", total);
         invalidate();
     }
 
@@ -194,7 +165,7 @@ public class PieChartView extends View {
         float top     = (h - size) / 2f;
         oval.set(left, top, left + size, top + size);
 
-        labelPaint.setTextSize(size * 0.065f);
+        labelPaint.setTextSize(size * 0.045f); // Slightly smaller to fit name + %
     }
 
     @Override
@@ -217,17 +188,25 @@ public class PieChartView extends View {
             canvas.drawArc(oval, startAngle, sweep, true, slicePaint);
             canvas.drawArc(oval, startAngle, sweep, true, borderPaint);
 
-            // draw percentage label if slice is large enough
-            if (sweep > 20f && animationProgress > 0.8f) {
+            // draw labels if slice is large enough
+            if (sweep > 30f && animationProgress > 0.8f) {
                 float midAngle = (float) Math.toRadians(startAngle + sweep / 2f);
-                float cx = oval.centerX() + oval.width() / 2f * 0.65f * (float) Math.cos(midAngle);
-                float cy = oval.centerY() + oval.height() / 2f * 0.65f * (float) Math.sin(midAngle);
+                float radius = oval.width() / 2f * 0.72f;
+                float cx = oval.centerX() + radius * (float) Math.cos(midAngle);
+                float cy = oval.centerY() + radius * (float) Math.sin(midAngle);
+
                 labelPaint.setAlpha((int) ((animationProgress - 0.8f) / 0.2f * 255));
-                canvas.drawText(
-                        String.format("%.0f%%", slice.sweep / 360f * 100f),
-                        cx, cy + labelPaint.getTextSize() / 3f,
-                        labelPaint
-                );
+
+                String percentage = String.format(java.util.Locale.getDefault(), "%.0f%%", slice.sweep / 360f * 100f);
+                String labelText = slice.category + "\n" + percentage;
+
+                // Drawing multiline text
+                String[] lines = labelText.split("\n");
+                float yOffset = cy - ((lines.length - 1) * labelPaint.getTextSize() / 2f);
+                for (String line : lines) {
+                    canvas.drawText(line, cx, yOffset + labelPaint.getTextSize() / 3f, labelPaint);
+                    yOffset += labelPaint.getTextSize();
+                }
             }
 
             startAngle += sweep;
