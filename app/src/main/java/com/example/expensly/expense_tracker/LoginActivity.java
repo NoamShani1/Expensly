@@ -13,7 +13,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.expensly.R;
 
-public class Login extends AppCompatActivity {
+public class LoginActivity extends AppCompatActivity {
 
     private EditText nEmail;
     private EditText nPassword;

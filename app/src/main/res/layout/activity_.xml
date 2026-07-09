@@ -5,6 +5,6 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".expense_tracker.Login">
+    tools:context=".expense_tracker.LoginActivity">
 
 </androidx.constraintlayout.widget.ConstraintLayout>

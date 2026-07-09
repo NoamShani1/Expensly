@@ -12,7 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Expensly">
         <activity
-            android:name=".expense_tracker.Login"
+            android:name=".expense_tracker.LoginActivity"
             android:exported="false" />
         <activity
             android:name=".expense_tracker.MainActivity"
