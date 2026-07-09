@@ -1,10 +1,13 @@
-package com.example.expensly.expense_tracker;
+package com.example.expensly.expensly;
 
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -13,6 +16,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -51,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ── Data layer ────────────────────────────────────────────────────────────
     private ExpenseRepository repository;
+    private SessionManager    session;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -60,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         repository    = ExpenseRepository.getInstance(this);
+        session       = new SessionManager(this);
         pieChartView  = findViewById(R.id.pieChartView);
         recyclerView  = findViewById(R.id.recyclerView);
         tvTotalAmount = findViewById(R.id.tvTotalAmount);
@@ -75,6 +81,25 @@ public class MainActivity extends AppCompatActivity {
         if (repository.getBudget() == null) {
             showBudgetDialog();
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_logout) {
+            session.logout();
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     // ── Setup helpers ─────────────────────────────────────────────────────────

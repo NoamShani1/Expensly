@@ -3,41 +3,49 @@ package com.example.expensly.expensly;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+/**
+ * Persists the logged-in user between app launches using SharedPreferences.
+ */
 public class SessionManager {
-    private static final String PREF_NAME = "ExpenslySession";
-    private static final String KEY_IS_LOGGED_IN = "isLoggedIn";
-    private static final String KEY_EMAIL = "email";
-    private static final String KEY_NAME = "firstName";
 
-    private final SharedPreferences pref;
-    private final SharedPreferences.Editor editor;
+    private static final String PREFS_NAME = "expensly_session";
+    private static final String KEY_EMAIL  = "email";
+    private static final String KEY_FNAME  = "first_name";
+
+    private final SharedPreferences prefs;
 
     public SessionManager(Context context) {
-        pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        editor = pref.edit();
+        prefs = context.getApplicationContext()
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
+    /** Stores the logged-in user. */
     public void login(String email, String firstName) {
-        editor.putBoolean(KEY_IS_LOGGED_IN, true);
-        editor.putString(KEY_EMAIL, email);
-        editor.putString(KEY_NAME, firstName);
-        editor.apply();
+        prefs.edit()
+                .putString(KEY_EMAIL, email)
+                .putString(KEY_FNAME, firstName != null ? firstName : "")
+                .apply();
     }
 
     public boolean isLoggedIn() {
-        return pref.getBoolean(KEY_IS_LOGGED_IN, false);
+        return prefs.contains(KEY_EMAIL);
     }
 
-    public void logout() {
-        editor.clear();
-        editor.apply();
-    }
-
+    /** Email of the logged-in user, or null if nobody is logged in. */
     public String getEmail() {
-        return pref.getString(KEY_EMAIL, "");
+        return prefs.getString(KEY_EMAIL, null);
     }
 
     public String getFirstName() {
-        return pref.getString(KEY_NAME, "User");
+        return prefs.getString(KEY_FNAME, "");
+    }
+
+    /** Keeps the cached first name in sync after the user edits their profile. */
+    public void setFirstName(String firstName) {
+        prefs.edit().putString(KEY_FNAME, firstName != null ? firstName : "").apply();
+    }
+
+    public void logout() {
+        prefs.edit().clear().apply();
     }
 }

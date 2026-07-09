@@ -1,4 +1,4 @@
-package com.example.expensly.expense_tracker;
+package com.example.expensly.expensly;
 
 public class Budget {
     private double amount;

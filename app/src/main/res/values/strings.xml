@@ -18,4 +18,5 @@
     <string name="update_failed">Update failed</string>
     <string name="expense_added">Expense added</string>
     <string name="add_failed">Add failed</string>
+    <string name="action_logout">Logout</string>
 </resources>

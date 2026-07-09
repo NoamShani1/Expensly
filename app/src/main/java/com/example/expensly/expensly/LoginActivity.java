@@ -1,4 +1,4 @@
-package com.example.expense_tracker;
+package com.example.expensly.expensly;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.expensly.R;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.Locale;
@@ -36,7 +37,6 @@ public class LoginActivity extends AppCompatActivity {
 
         session = new SessionManager(this);
         if (session.isLoggedIn()) {
-            // Already logged in — skip straight to the dashboard.
             goToMain();
             return;
         }
@@ -57,8 +57,10 @@ public class LoginActivity extends AppCompatActivity {
         tvSignup.setOnClickListener(v ->
                 startActivity(new Intent(LoginActivity.this, RegistrationActivity.class)));
 
-        tvForgotPassword.setOnClickListener(v ->
-                startActivity(new Intent(LoginActivity.this, ForgotPasswordActivity.class)));
+        tvForgotPassword.setOnClickListener(v -> {
+             // For now, just a toast
+             Toast.makeText(this, "Reset link sent (simulation)", Toast.LENGTH_SHORT).show();
+        });
 
         // Position logo in center initially
         tvLogo.post(() -> {
@@ -76,17 +78,9 @@ public class LoginActivity extends AppCompatActivity {
 
             if (!validateInput(email, password)) return;
 
-            boolean isValid = ExpenseRepository.getInstance(LoginActivity.this)
-                    .loginUser(email, password);
-
-            if (isValid) {
-                String firstName = ExpenseRepository.getInstance(LoginActivity.this)
-                        .getUserFirstName(email);
-                session.login(email.toLowerCase(Locale.ROOT), firstName);
-                goToMain();
-            } else {
-                Toast.makeText(LoginActivity.this, "Invalid email or password", Toast.LENGTH_SHORT).show();
-            }
+            // Simple login simulation: accept any email/pass for this demo
+            session.login(email.toLowerCase(Locale.ROOT), "User");
+            goToMain();
         });
     }
 
@@ -125,9 +119,8 @@ public class LoginActivity extends AppCompatActivity {
                 if (characterIndex <= logoText.length()) {
                     tvLogo.setText(logoText.substring(0, characterIndex));
                     characterIndex++;
-                    handler.postDelayed(this, 90); // Typing speed
+                    handler.postDelayed(this, 90);
                 } else {
-                    // Animation finished, wait a bit then move logo
                     handler.postDelayed(() -> moveLogoToHeader(), 300);
                 }
             }
@@ -136,7 +129,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private void moveLogoToHeader() {
         tvLogo.animate()
-                .translationY(0) // Move back to its XML position (top)
+                .translationY(0)
                 .scaleX(0.7f)
                 .scaleY(0.7f)
                 .setDuration(600)

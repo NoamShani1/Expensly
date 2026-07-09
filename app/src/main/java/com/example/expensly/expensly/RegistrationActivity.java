@@ -1,97 +1,129 @@
-package com.example.expensly.expense_tracker;
+package com.example.expensly.expensly;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.View;
+import android.util.Patterns;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
-import com.example.expensly.R;
+import com.google.android.material.textfield.TextInputLayout;
+
+import java.util.Locale;
 
 public class RegistrationActivity extends AppCompatActivity {
+
+    private static final int MIN_PASSWORD_LENGTH = 6;
 
     private EditText mEmail;
     private EditText mPass;
     private EditText rmPass;
     private EditText fname;
     private EditText lName;
-    private Button btn_reg;
-    private TextView mSignin;
+
+    private TextInputLayout tilFname;
+    private TextInputLayout tilLname;
+    private TextInputLayout tilEmail;
+    private TextInputLayout tilPass;
+    private TextInputLayout tilRePass;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_registration);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            registration();
-            return insets;
-        });
+        WindowUtils.applyEdgeToEdge(this, findViewById(R.id.main));
+        setupViews();
     }
 
-    private void registration(){
+    private void setupViews() {
         fname = findViewById(R.id.fname_reg);
         lName = findViewById(R.id.lname_reg);
         mEmail = findViewById(R.id.email_reg);
         mPass = findViewById(R.id.password_reg);
         rmPass = findViewById(R.id.repassword_reg);
-        btn_reg = findViewById(R.id.reg_btn_login);
-        mSignin = findViewById(R.id.alr_acc);
 
-        btn_reg.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String f_name = fname.getText().toString().trim();
-                String l_name= lName.getText().toString().trim();
-                String email = mEmail.getText().toString().trim();
+        tilFname = findViewById(R.id.til_fname_reg);
+        tilLname = findViewById(R.id.til_lname_reg);
+        tilEmail = findViewById(R.id.til_email_reg);
+        tilPass = findViewById(R.id.til_password_reg);
+        tilRePass = findViewById(R.id.til_repassword_reg);
 
-                if(TextUtils.isEmpty(email)){
-                    mEmail.setError("Email required");
-                }
-                if(TextUtils.isEmpty(f_name)){
-                    fname.setError("Field required");
-                }
-                if(TextUtils.isEmpty(l_name)){
-                    lName.setError("Field required");
-                }
+        Button btnReg = findViewById(R.id.reg_btn_login);
+        TextView tvSignin = findViewById(R.id.alr_acc);
 
-                validatePasswords();
-
-            }
-        });
+        tvSignin.setOnClickListener(v -> finish());
+        btnReg.setOnClickListener(v -> attemptRegistration());
     }
 
-    //validating pass
-    private boolean validatePasswords() {
-        String password = mPass.getText().toString().trim();
-        String rePassword = rmPass.getText().toString().trim();
-        if(TextUtils.isEmpty(password)){
-            mPass.setError("Password Required");
-        }
-        if(TextUtils.isEmpty(rePassword)){
-            rmPass.setError("Password Required");
-        }
-        if (!password.equals(rePassword)) {
-            rmPass.setError("Passwords do not match");
-            rmPass.requestFocus();
-            Toast.makeText(this,
-                    "Passwords do not match",
-                    Toast.LENGTH_SHORT).show();
-            return false;
-        }
+    private void attemptRegistration() {
+        String fName = fname.getText().toString().trim();
+        String lNameStr = lName.getText().toString().trim();
+        String email = mEmail.getText().toString().trim();
+        String password = mPass.getText().toString();
+        String rePassword = rmPass.getText().toString();
 
-        return true;
+        if (!validate(fName, lNameStr, email, password, rePassword)) return;
+
+        boolean success = ExpenseRepository.getInstance(this)
+                .registerUser(fName, lNameStr, email, password);
+
+        if (success) {
+            // Log the new user straight in — no need to type it all again.
+            SessionManager session = new SessionManager(this);
+            session.login(email.toLowerCase(Locale.ROOT), fName);
+            Toast.makeText(this, "Welcome, " + fName + "!", Toast.LENGTH_SHORT).show();
+
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        } else {
+            tilEmail.setError("An account with this email already exists");
+        }
     }
 
+    private boolean validate(String fName, String lNameStr, String email,
+                             String password, String rePassword) {
+        tilFname.setError(null);
+        tilLname.setError(null);
+        tilEmail.setError(null);
+        tilPass.setError(null);
+        tilRePass.setError(null);
 
+        boolean valid = true;
+
+        if (fName.isEmpty()) {
+            tilFname.setError("Required");
+            valid = false;
+        }
+        if (lNameStr.isEmpty()) {
+            tilLname.setError("Required");
+            valid = false;
+        }
+        if (email.isEmpty()) {
+            tilEmail.setError("Email is required");
+            valid = false;
+        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            tilEmail.setError("Enter a valid email address");
+            valid = false;
+        }
+        if (password.isEmpty()) {
+            tilPass.setError("Password is required");
+            valid = false;
+        } else if (password.length() < MIN_PASSWORD_LENGTH) {
+            tilPass.setError("Password must be at least " + MIN_PASSWORD_LENGTH + " characters");
+            valid = false;
+        }
+        if (rePassword.isEmpty()) {
+            tilRePass.setError("Please confirm your password");
+            valid = false;
+        } else if (!password.isEmpty() && !password.equals(rePassword)) {
+            tilRePass.setError("Passwords do not match");
+            valid = false;
+        }
+        return valid;
+    }
 }

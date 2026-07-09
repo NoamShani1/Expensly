@@ -8,7 +8,7 @@
     android:orientation="vertical"
     android:gravity="center"
     android:background="@drawable/background_color"
-    tools:context=".expense_tracker.RegistrationActivity">
+    tools:context=".expensly.RegistrationActivity">
 
     <ScrollView
         android:layout_height="wrap_content"

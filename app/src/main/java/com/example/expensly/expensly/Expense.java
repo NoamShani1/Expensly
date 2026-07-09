@@ -1,4 +1,4 @@
-package com.example.expensly.expense_tracker;
+package com.example.expensly.expensly;
 
 /**
  * Model class representing a single expense entry.
@@ -52,7 +52,7 @@ public class Expense {
     public void setDate(String date)        { this.date = date; }
 
     public String getNote()                 { return note; }
-    public void setNote(String note)        { this.note = note; }
+    public void setNote(String  note)        { this.note = note; }
 
     // ── Utility ───────────────────────────────────────────────────────────────
 

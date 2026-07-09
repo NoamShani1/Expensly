@@ -12,10 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Expensly">
         <activity
-            android:name=".expense_tracker.LoginActivity"
-            android:exported="false" />
-        <activity
-            android:name=".expense_tracker.MainActivity"
+            android:name=".expensly.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,7 +20,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".expense_tracker.RegistrationActivity" />
+        <activity
+            android:name=".expensly.MainActivity"
+            android:exported="false" />
+        <activity android:name=".expensly.RegistrationActivity" />
     </application>
 
 </manifest>

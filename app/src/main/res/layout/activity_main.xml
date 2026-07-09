@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121212"
-    tools:context=".expense_tracker.MainActivity">
+    tools:context=".expensly.MainActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,7 +14,7 @@
         android:orientation="vertical">
 
         <!-- Animated Pie Chart -->
-        <com.example.expensly.expense_tracker.PieChartView
+        <com.example.expensly.expensly.PieChartView
             android:id="@+id/pieChartView"
             android:layout_width="match_parent"
             android:layout_height="300dp"

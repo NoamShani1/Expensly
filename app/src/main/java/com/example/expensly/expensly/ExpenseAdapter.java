@@ -1,4 +1,4 @@
-package com.example.expensly.expense_tracker;
+package com.example.expensly.expensly;
 
 import android.view.LayoutInflater;
 import android.view.View;
