@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FFFFFF</color>
-    <color name="white">#B69BE7</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="purple_primary">#5D17E7</color>
+    <color name="purple_light">#BB86FC</color>
+    <color name="text_hint">#888888</color>
+    <color name="text_muted">#AAAAAA</color>
+    <color name="error_red">#CF6679</color>
+    <color name="card_dark">#1E1E1E</color>
 </resources>

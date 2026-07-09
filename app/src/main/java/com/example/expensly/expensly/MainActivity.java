@@ -62,16 +62,32 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowUtils.enableEdgeToEdge(this);
         setContentView(R.layout.activity_main);
+        WindowUtils.applyPadding(findViewById(R.id.main_root));
 
         repository    = ExpenseRepository.getInstance(this);
         session       = new SessionManager(this);
+
+        if (!session.isLoggedIn()) {
+            Intent intent = new Intent(this, LoginActivity.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
+
         pieChartView  = findViewById(R.id.pieChartView);
         recyclerView  = findViewById(R.id.recyclerView);
         tvTotalAmount = findViewById(R.id.tvTotalAmount);
         tvBudget      = findViewById(R.id.tvBudget);
         tvSavings     = findViewById(R.id.tvSavings);
         tvEmptyState  = findViewById(R.id.tvEmptyState);
+
+        findViewById(R.id.btnProfile).setOnClickListener(v ->
+                startActivity(new Intent(this, ProfileActivity.class)));
+
+        TextView tvGreeting = findViewById(R.id.tvGreeting);
+        tvGreeting.setText(getString(R.string.greeting, session.getFirstName()));
 
         setupRecyclerView();
         setupFab();

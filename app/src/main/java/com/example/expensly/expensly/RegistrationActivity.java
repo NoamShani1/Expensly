@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.expensly.R;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.Locale;
@@ -33,8 +34,9 @@ public class RegistrationActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowUtils.enableEdgeToEdge(this);
         setContentView(R.layout.activity_registration);
-        WindowUtils.applyEdgeToEdge(this, findViewById(R.id.main));
+        WindowUtils.applyPadding(findViewById(R.id.main));
         setupViews();
     }
 

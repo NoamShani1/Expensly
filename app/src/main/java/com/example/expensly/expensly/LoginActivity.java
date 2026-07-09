@@ -41,8 +41,9 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
+        WindowUtils.enableEdgeToEdge(this);
         setContentView(R.layout.activity_login);
-        WindowUtils.applyEdgeToEdge(this, findViewById(R.id.login_root));
+        WindowUtils.applyPadding(findViewById(R.id.login_root));
 
         tvLogo = findViewById(R.id.tv_logo_expensly);
         loginForm = findViewById(R.id.login_form_scroll);
@@ -78,9 +79,14 @@ public class LoginActivity extends AppCompatActivity {
 
             if (!validateInput(email, password)) return;
 
-            // Simple login simulation: accept any email/pass for this demo
-            session.login(email.toLowerCase(Locale.ROOT), "User");
-            goToMain();
+            ExpenseRepository repo = ExpenseRepository.getInstance(LoginActivity.this);
+            if (repo.loginUser(email, password)) {
+                String firstName = repo.getUserFirstName(email);
+                session.login(email.toLowerCase(Locale.ROOT), firstName);
+                goToMain();
+            } else {
+                tilPassword.setError("Invalid email or password");
+            }
         });
     }
 

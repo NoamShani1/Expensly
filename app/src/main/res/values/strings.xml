@@ -19,4 +19,9 @@
     <string name="expense_added">Expense added</string>
     <string name="add_failed">Add failed</string>
     <string name="action_logout">Logout</string>
+    <string name="full_name">%1$s %2$s</string>
+    <string name="logout_title">Logout</string>
+    <string name="logout_message">Are you sure you want to log out?</string>
+    <string name="logout_confirm">Logout</string>
+    <string name="greeting">Hi, %s</string>
 </resources>

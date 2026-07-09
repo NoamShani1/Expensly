@@ -14,16 +14,13 @@ import java.util.Map;
 /**
  * Low-level SQLite helper.
  * Handles database creation, upgrades, and raw CRUD operations.
- *
- * Use {@link ExpenseRepository} for all app-level access — it wraps this class.
  */
 public class ExpenseDbHelper extends SQLiteOpenHelper {
 
-    // ── Database metadata ─────────────────────────────────────────────────────
     private static final String DB_NAME    = "expense_tracker.db";
-    private static final int    DB_VERSION = 2; // Incremented for budget table
+    private static final int    DB_VERSION = 3; // Incremented for users table
 
-    // ── Table & column names ──────────────────────────────────────────────────
+    // ── Tables & Columns ──────────────────────────────────────────────────────
     public static final String TABLE_EXPENSES  = "expenses";
     public static final String COL_ID          = "_id";
     public static final String COL_TITLE       = "title";
@@ -36,7 +33,12 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public static final String COL_BUDGET_AMT  = "amount";
     public static final String COL_BUDGET_PER  = "period";
 
-    // ── Singleton ─────────────────────────────────────────────────────────────
+    public static final String TABLE_USERS     = "users";
+    public static final String COL_USER_EMAIL  = "email";
+    public static final String COL_USER_FNAME  = "fname";
+    public static final String COL_USER_LNAME  = "lname";
+    public static final String COL_USER_PASS   = "password";
+
     private static ExpenseDbHelper instance;
 
     public static synchronized ExpenseDbHelper getInstance(Context context) {
@@ -50,61 +52,65 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         super(context, DB_NAME, null, DB_VERSION);
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String createExpensesTable =
-                "CREATE TABLE " + TABLE_EXPENSES + " ("
+        db.execSQL("CREATE TABLE " + TABLE_EXPENSES + " ("
                 + COL_ID       + " INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + COL_TITLE    + " TEXT NOT NULL, "
                 + COL_AMOUNT   + " REAL NOT NULL, "
                 + COL_CATEGORY + " TEXT NOT NULL, "
                 + COL_DATE     + " TEXT NOT NULL, "
                 + COL_NOTE     + " TEXT"
-                + ");";
-        db.execSQL(createExpensesTable);
+                + ");");
 
-        String createBudgetTable =
-                "CREATE TABLE " + TABLE_BUDGET + " ("
+        db.execSQL("CREATE TABLE " + TABLE_BUDGET + " ("
                 + COL_BUDGET_AMT + " REAL NOT NULL, "
                 + COL_BUDGET_PER + " TEXT NOT NULL"
-                + ");";
-        db.execSQL(createBudgetTable);
+                + ");");
+
+        db.execSQL("CREATE TABLE " + TABLE_USERS + " ("
+                + COL_USER_EMAIL + " TEXT PRIMARY KEY, "
+                + COL_USER_FNAME + " TEXT NOT NULL, "
+                + COL_USER_LNAME + " TEXT NOT NULL, "
+                + COL_USER_PASS  + " TEXT NOT NULL"
+                + ");");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < 2) {
-            String createBudgetTable =
-                    "CREATE TABLE " + TABLE_BUDGET + " ("
+            db.execSQL("CREATE TABLE " + TABLE_BUDGET + " ("
                     + COL_BUDGET_AMT + " REAL NOT NULL, "
                     + COL_BUDGET_PER + " TEXT NOT NULL"
-                    + ");";
-            db.execSQL(createBudgetTable);
+                    + ");");
+        }
+        if (oldVersion < 3) {
+            db.execSQL("CREATE TABLE " + TABLE_USERS + " ("
+                    + COL_USER_EMAIL + " TEXT PRIMARY KEY, "
+                    + COL_USER_FNAME + " TEXT NOT NULL, "
+                    + COL_USER_LNAME + " TEXT NOT NULL, "
+                    + COL_USER_PASS  + " TEXT NOT NULL"
+                    + ");");
         }
     }
 
-    // ── CREATE ────────────────────────────────────────────────────────────────
+    // ── EXPENSES ──────────────────────────────────────────────────────────────
 
     public long insertExpense(Expense expense) {
         SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv  = toContentValues(expense);
+        ContentValues cv  = new ContentValues();
+        cv.put(COL_TITLE,    expense.getTitle());
+        cv.put(COL_AMOUNT,   expense.getAmount());
+        cv.put(COL_CATEGORY, expense.getCategory());
+        cv.put(COL_DATE,     expense.getDate());
+        cv.put(COL_NOTE,     expense.getNote());
         return db.insert(TABLE_EXPENSES, null, cv);
     }
-
-    // ── READ ──────────────────────────────────────────────────────────────────
 
     public List<Expense> getAllExpenses() {
         List<Expense> list = new ArrayList<>();
         SQLiteDatabase db  = getReadableDatabase();
-
-        try (Cursor cursor = db.query(
-                TABLE_EXPENSES,
-                null,
-                null, null, null, null,
-                COL_DATE + " DESC"
-        )) {
+        try (Cursor cursor = db.query(TABLE_EXPENSES, null, null, null, null, null, COL_DATE + " DESC")) {
             if (cursor != null && cursor.moveToFirst()) {
                 do {
                     list.add(cursorToExpense(cursor));
@@ -116,16 +122,8 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
 
     public Expense getExpenseById(long id) {
         SQLiteDatabase db = getReadableDatabase();
-        try (Cursor cursor = db.query(
-                TABLE_EXPENSES,
-                null,
-                COL_ID + " = ?",
-                new String[]{String.valueOf(id)},
-                null, null, null
-        )) {
-            if (cursor != null && cursor.moveToFirst()) {
-                return cursorToExpense(cursor);
-            }
+        try (Cursor cursor = db.query(TABLE_EXPENSES, null, COL_ID + " = ?", new String[]{String.valueOf(id)}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursorToExpense(cursor);
         }
         return null;
     }
@@ -133,14 +131,7 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public List<Expense> getExpensesByCategory(String category) {
         List<Expense> list = new ArrayList<>();
         SQLiteDatabase db  = getReadableDatabase();
-        try (Cursor cursor = db.query(
-                TABLE_EXPENSES,
-                null,
-                COL_CATEGORY + " = ?",
-                new String[]{category},
-                null, null,
-                COL_DATE + " DESC"
-        )) {
+        try (Cursor cursor = db.query(TABLE_EXPENSES, null, COL_CATEGORY + " = ?", new String[]{category}, null, null, COL_DATE + " DESC")) {
             if (cursor != null && cursor.moveToFirst()) {
                 do {
                     list.add(cursorToExpense(cursor));
@@ -153,16 +144,10 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public Map<String, Double> getCategoryTotals() {
         Map<String, Double> totals = new LinkedHashMap<>();
         SQLiteDatabase db = getReadableDatabase();
-        String query = "SELECT " + COL_CATEGORY + ", SUM(" + COL_AMOUNT + ") " +
-                "FROM " + TABLE_EXPENSES + " " +
-                "GROUP BY " + COL_CATEGORY;
-
-        try (Cursor cursor = db.rawQuery(query, null)) {
+        try (Cursor cursor = db.rawQuery("SELECT " + COL_CATEGORY + ", SUM(" + COL_AMOUNT + ") FROM " + TABLE_EXPENSES + " GROUP BY " + COL_CATEGORY, null)) {
             if (cursor != null && cursor.moveToFirst()) {
                 do {
-                    String category = cursor.getString(0);
-                    double total    = cursor.getDouble(1);
-                    totals.put(category, total);
+                    totals.put(cursor.getString(0), cursor.getDouble(1));
                 } while (cursor.moveToNext());
             }
         }
@@ -171,38 +156,26 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
 
     public double getTotalAmount() {
         SQLiteDatabase db = getReadableDatabase();
-        double total = 0;
-        try (Cursor cursor = db.rawQuery(
-                "SELECT SUM(" + COL_AMOUNT + ") FROM " + TABLE_EXPENSES, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                total = cursor.getDouble(0);
-            }
+        try (Cursor cursor = db.rawQuery("SELECT SUM(" + COL_AMOUNT + ") FROM " + TABLE_EXPENSES, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursor.getDouble(0);
         }
-        return total;
+        return 0;
     }
-
-    // ── UPDATE ────────────────────────────────────────────────────────────────
 
     public int updateExpense(Expense expense) {
         SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv  = toContentValues(expense);
-        return db.update(
-                TABLE_EXPENSES,
-                cv,
-                COL_ID + " = ?",
-                new String[]{String.valueOf(expense.getId())}
-        );
+        ContentValues cv  = new ContentValues();
+        cv.put(COL_TITLE,    expense.getTitle());
+        cv.put(COL_AMOUNT,   expense.getAmount());
+        cv.put(COL_CATEGORY, expense.getCategory());
+        cv.put(COL_DATE,     expense.getDate());
+        cv.put(COL_NOTE,     expense.getNote());
+        return db.update(TABLE_EXPENSES, cv, COL_ID + " = ?", new String[]{String.valueOf(expense.getId())});
     }
-
-    // ── DELETE ────────────────────────────────────────────────────────────────
 
     public int deleteExpense(long id) {
         SQLiteDatabase db = getWritableDatabase();
-        return db.delete(
-                TABLE_EXPENSES,
-                COL_ID + " = ?",
-                new String[]{String.valueOf(id)}
-        );
+        return db.delete(TABLE_EXPENSES, COL_ID + " = ?", new String[]{String.valueOf(id)});
     }
 
     public int deleteAllExpenses() {
@@ -226,25 +199,48 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
         return db.query(TABLE_BUDGET, null, null, null, null, null, null);
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // ── USERS ─────────────────────────────────────────────────────────────────
 
-    private ContentValues toContentValues(Expense e) {
+    public long insertUser(String fname, String lname, String email, String password) {
+        SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
-        cv.put(COL_TITLE,    e.getTitle());
-        cv.put(COL_AMOUNT,   e.getAmount());
-        cv.put(COL_CATEGORY, e.getCategory());
-        cv.put(COL_DATE,     e.getDate());
-        cv.put(COL_NOTE,     e.getNote() != null ? e.getNote() : "");
-        return cv;
+        cv.put(COL_USER_FNAME, fname);
+        cv.put(COL_USER_LNAME, lname);
+        cv.put(COL_USER_EMAIL, email.toLowerCase());
+        cv.put(COL_USER_PASS, password);
+        return db.insert(TABLE_USERS, null, cv);
     }
 
+    public Cursor getUserByEmail(String email) {
+        SQLiteDatabase db = getReadableDatabase();
+        return db.query(TABLE_USERS, null, COL_USER_EMAIL + " = ?", new String[]{email.toLowerCase()}, null, null, null);
+    }
+
+    public int updateUserNames(String email, String fname, String lname) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_USER_FNAME, fname);
+        cv.put(COL_USER_LNAME, lname);
+        return db.update(TABLE_USERS, cv, COL_USER_EMAIL + " = ?", new String[]{email.toLowerCase()});
+    }
+
+    public int updateUserPassword(String email, String newPassword) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_USER_PASS, newPassword);
+        return db.update(TABLE_USERS, cv, COL_USER_EMAIL + " = ?", new String[]{email.toLowerCase()});
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
     private Expense cursorToExpense(Cursor cursor) {
-        long   id       = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID));
-        String title    = cursor.getString(cursor.getColumnIndexOrThrow(COL_TITLE));
-        double amount   = cursor.getDouble(cursor.getColumnIndexOrThrow(COL_AMOUNT));
-        String category = cursor.getString(cursor.getColumnIndexOrThrow(COL_CATEGORY));
-        String date     = cursor.getString(cursor.getColumnIndexOrThrow(COL_DATE));
-        String note     = cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTE));
-        return new Expense(id, title, amount, category, date, note);
+        return new Expense(
+                cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COL_TITLE)),
+                cursor.getDouble(cursor.getColumnIndexOrThrow(COL_AMOUNT)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COL_CATEGORY)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COL_DATE)),
+                cursor.getString(cursor.getColumnIndexOrThrow(COL_NOTE))
+        );
     }
 }

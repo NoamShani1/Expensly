@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.expensly.R;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -54,8 +55,9 @@ public class ProfileActivity extends AppCompatActivity {
         email = session.getEmail();
         repository = ExpenseRepository.getInstance(this);
 
+        WindowUtils.enableEdgeToEdge(this);
         setContentView(R.layout.activity_profile);
-        WindowUtils.applyEdgeToEdge(this, findViewById(R.id.profile_root));
+        WindowUtils.applyPadding(findViewById(R.id.profile_root));
 
         imgAvatar = findViewById(R.id.imgAvatar);
         tvProfileName = findViewById(R.id.tvProfileName);

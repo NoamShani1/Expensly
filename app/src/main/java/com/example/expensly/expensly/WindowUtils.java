@@ -1,44 +1,50 @@
 package com.example.expensly.expensly;
 
-import android.app.Activity;
 import android.view.View;
 
+import androidx.activity.ComponentActivity;
+import androidx.activity.EdgeToEdge;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
- * Edge-to-edge handling shared by every screen.
- *
- * From targetSdk 35+ the system draws behind the status and navigation bars,
- * so each Activity must pad its root view by the system bar insets — otherwise
- * content (and touch targets like the logout button) end up underneath them.
+ * Modern Edge-to-Edge handling.
+ * Uses the official androidx.activity.EdgeToEdge API.
  */
 public final class WindowUtils {
 
-    private WindowUtils() {
+    private WindowUtils() {}
+
+    /**
+     * Call this BEFORE setContentView in Activity.onCreate.
+     */
+    public static void enableEdgeToEdge(ComponentActivity activity) {
+        EdgeToEdge.enable(activity);
     }
 
     /**
-     * Pads the given root view by the system bars, display cutout and keyboard
-     * insets, and makes the status/navigation bar icons light so they are
-     * visible on the dark gradient background.
+     * Call this AFTER setContentView to apply padding to the root view.
      */
-    public static void applyEdgeToEdge(Activity activity, View root) {
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(
-                activity.getWindow(), activity.getWindow().getDecorView());
-        controller.setAppearanceLightStatusBars(false);
-        controller.setAppearanceLightNavigationBars(false);
-
+    public static void applyPadding(View root) {
+        if (root == null) return;
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             Insets bars = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars()
-                            | WindowInsetsCompat.Type.displayCutout()
-                            | WindowInsetsCompat.Type.ime());
+                    WindowInsetsCompat.Type.systemBars() |
+                    WindowInsetsCompat.Type.displayCutout()
+            );
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-            return WindowInsetsCompat.CONSUMED;
+            return insets;
         });
+    }
+    
+    /**
+     * Legacy helper that does both (for convenience).
+     * Make sure to call this before setContentView if you use the returned layout params,
+     * but usually it's easier to just call the two methods above.
+     */
+    public static void applyEdgeToEdge(ComponentActivity activity, View root) {
+        enableEdgeToEdge(activity);
+        applyPadding(root);
     }
 }

@@ -24,6 +24,8 @@
             android:name=".expensly.MainActivity"
             android:exported="false" />
         <activity android:name=".expensly.RegistrationActivity" />
+        <activity android:name=".expensly.ProfileActivity" />
+        <activity android:name=".expensly.ForgotPasswordActivity" />
     </application>
 
 </manifest>
