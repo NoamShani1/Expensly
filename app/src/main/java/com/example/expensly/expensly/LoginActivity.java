@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.expensly.R;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.firebase.auth.FirebaseAuth;
 
 import java.util.Locale;
 
@@ -30,13 +31,14 @@ public class LoginActivity extends AppCompatActivity {
     private int characterIndex = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private SessionManager session;
+    private final FirebaseAuth auth = FirebaseAuth.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         session = new SessionManager(this);
-        if (session.isLoggedIn()) {
+        if (auth.getCurrentUser() != null) {
             goToMain();
             return;
         }
@@ -79,15 +81,28 @@ public class LoginActivity extends AppCompatActivity {
 
             if (!validateInput(email, password)) return;
 
-            ExpenseRepository repo = ExpenseRepository.getInstance(LoginActivity.this);
-            if (repo.loginUser(email, password)) {
-                String firstName = repo.getUserFirstName(email);
-                session.login(email.toLowerCase(Locale.ROOT), firstName);
-                goToMain();
-            } else {
-                tilPassword.setError("Invalid email or password");
-            }
+            btnLogin.setEnabled(false);
+            auth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener(this, task -> {
+                        if (task.isSuccessful()) {
+                            onLoginSuccess(email);
+                        } else {
+                            btnLogin.setEnabled(true);
+                            tilPassword.setError("Invalid email or password");
+                        }
+                    });
         });
+    }
+
+    private void onLoginSuccess(String email) {
+        String uid = auth.getCurrentUser().getUid();
+        UserRepository.getInstance().getProfile(uid)
+                .addOnCompleteListener(this, task -> {
+                    String firstName = task.isSuccessful()
+                            ? UserRepository.firstName(task.getResult()) : null;
+                    session.login(email.toLowerCase(Locale.ROOT), firstName != null ? firstName : "User");
+                    goToMain();
+                });
     }
 
     private boolean validateInput(String email, String password) {

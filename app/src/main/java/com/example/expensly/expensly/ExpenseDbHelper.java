@@ -18,7 +18,7 @@ import java.util.Map;
 public class ExpenseDbHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME    = "expense_tracker.db";
-    private static final int    DB_VERSION = 3; // Incremented for users table
+    private static final int    DB_VERSION = 3;
 
     // ── Tables & Columns ──────────────────────────────────────────────────────
     public static final String TABLE_EXPENSES  = "expenses";
@@ -32,12 +32,6 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public static final String TABLE_BUDGET    = "budget";
     public static final String COL_BUDGET_AMT  = "amount";
     public static final String COL_BUDGET_PER  = "period";
-
-    public static final String TABLE_USERS     = "users";
-    public static final String COL_USER_EMAIL  = "email";
-    public static final String COL_USER_FNAME  = "fname";
-    public static final String COL_USER_LNAME  = "lname";
-    public static final String COL_USER_PASS   = "password";
 
     private static ExpenseDbHelper instance;
 
@@ -67,13 +61,6 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
                 + COL_BUDGET_AMT + " REAL NOT NULL, "
                 + COL_BUDGET_PER + " TEXT NOT NULL"
                 + ");");
-
-        db.execSQL("CREATE TABLE " + TABLE_USERS + " ("
-                + COL_USER_EMAIL + " TEXT PRIMARY KEY, "
-                + COL_USER_FNAME + " TEXT NOT NULL, "
-                + COL_USER_LNAME + " TEXT NOT NULL, "
-                + COL_USER_PASS  + " TEXT NOT NULL"
-                + ");");
     }
 
     @Override
@@ -84,14 +71,7 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
                     + COL_BUDGET_PER + " TEXT NOT NULL"
                     + ");");
         }
-        if (oldVersion < 3) {
-            db.execSQL("CREATE TABLE " + TABLE_USERS + " ("
-                    + COL_USER_EMAIL + " TEXT PRIMARY KEY, "
-                    + COL_USER_FNAME + " TEXT NOT NULL, "
-                    + COL_USER_LNAME + " TEXT NOT NULL, "
-                    + COL_USER_PASS  + " TEXT NOT NULL"
-                    + ");");
-        }
+        db.execSQL("DROP TABLE IF EXISTS users");
     }
 
     // ── EXPENSES ──────────────────────────────────────────────────────────────
@@ -197,38 +177,6 @@ public class ExpenseDbHelper extends SQLiteOpenHelper {
     public Cursor getBudget() {
         SQLiteDatabase db = getReadableDatabase();
         return db.query(TABLE_BUDGET, null, null, null, null, null, null);
-    }
-
-    // ── USERS ─────────────────────────────────────────────────────────────────
-
-    public long insertUser(String fname, String lname, String email, String password) {
-        SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv = new ContentValues();
-        cv.put(COL_USER_FNAME, fname);
-        cv.put(COL_USER_LNAME, lname);
-        cv.put(COL_USER_EMAIL, email.toLowerCase());
-        cv.put(COL_USER_PASS, password);
-        return db.insert(TABLE_USERS, null, cv);
-    }
-
-    public Cursor getUserByEmail(String email) {
-        SQLiteDatabase db = getReadableDatabase();
-        return db.query(TABLE_USERS, null, COL_USER_EMAIL + " = ?", new String[]{email.toLowerCase()}, null, null, null);
-    }
-
-    public int updateUserNames(String email, String fname, String lname) {
-        SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv = new ContentValues();
-        cv.put(COL_USER_FNAME, fname);
-        cv.put(COL_USER_LNAME, lname);
-        return db.update(TABLE_USERS, cv, COL_USER_EMAIL + " = ?", new String[]{email.toLowerCase()});
-    }
-
-    public int updateUserPassword(String email, String newPassword) {
-        SQLiteDatabase db = getWritableDatabase();
-        ContentValues cv = new ContentValues();
-        cv.put(COL_USER_PASS, newPassword);
-        return db.update(TABLE_USERS, cv, COL_USER_EMAIL + " = ?", new String[]{email.toLowerCase()});
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

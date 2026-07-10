@@ -12,12 +12,18 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.expensly.R;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
 
 import java.util.Locale;
 
 public class RegistrationActivity extends AppCompatActivity {
 
     private static final int MIN_PASSWORD_LENGTH = 6;
+
+    private final FirebaseAuth auth = FirebaseAuth.getInstance();
 
     private EditText mEmail;
     private EditText mPass;
@@ -30,6 +36,7 @@ public class RegistrationActivity extends AppCompatActivity {
     private TextInputLayout tilEmail;
     private TextInputLayout tilPass;
     private TextInputLayout tilRePass;
+    private Button btnReg;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +60,7 @@ public class RegistrationActivity extends AppCompatActivity {
         tilPass = findViewById(R.id.til_password_reg);
         tilRePass = findViewById(R.id.til_repassword_reg);
 
-        Button btnReg = findViewById(R.id.reg_btn_login);
+        btnReg = findViewById(R.id.reg_btn_login);
         TextView tvSignin = findViewById(R.id.alr_acc);
 
         tvSignin.setOnClickListener(v -> finish());
@@ -69,21 +76,43 @@ public class RegistrationActivity extends AppCompatActivity {
 
         if (!validate(fName, lNameStr, email, password, rePassword)) return;
 
-        boolean success = ExpenseRepository.getInstance(this)
-                .registerUser(fName, lNameStr, email, password);
+        btnReg.setEnabled(false);
+        auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful()) {
+                        onAccountCreated(email, fName, lNameStr);
+                    } else {
+                        btnReg.setEnabled(true);
+                        handleRegistrationError(task.getException());
+                    }
+                });
+    }
 
-        if (success) {
-            // Log the new user straight in — no need to type it all again.
-            SessionManager session = new SessionManager(this);
-            session.login(email.toLowerCase(Locale.ROOT), fName);
-            Toast.makeText(this, "Welcome, " + fName + "!", Toast.LENGTH_SHORT).show();
+    private void onAccountCreated(String email, String fName, String lNameStr) {
+        String uid = auth.getCurrentUser().getUid();
+        UserRepository.getInstance().createProfile(uid, fName, lNameStr, email)
+                .addOnCompleteListener(this, task -> {
+                    // Log the new user straight in — no need to type it all again.
+                    SessionManager session = new SessionManager(this);
+                    session.login(email.toLowerCase(Locale.ROOT), fName);
+                    Toast.makeText(this, "Welcome, " + fName + "!", Toast.LENGTH_SHORT).show();
 
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        } else {
+                    Intent intent = new Intent(this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                });
+    }
+
+    private void handleRegistrationError(Exception e) {
+        if (e instanceof FirebaseAuthUserCollisionException) {
             tilEmail.setError("An account with this email already exists");
+        } else if (e instanceof FirebaseAuthWeakPasswordException) {
+            tilPass.setError("Password is too weak");
+        } else if (e instanceof FirebaseAuthInvalidCredentialsException) {
+            tilEmail.setError("Enter a valid email address");
+        } else {
+            Toast.makeText(this, "Registration failed. Please try again.", Toast.LENGTH_SHORT).show();
         }
     }
 

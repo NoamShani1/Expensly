@@ -16,13 +16,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.expensly.R;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.firebase.auth.EmailAuthProvider;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class ProfileActivity extends AppCompatActivity {
 
     private static final int MIN_PASSWORD_LENGTH = 6;
 
+    private final FirebaseAuth auth = FirebaseAuth.getInstance();
     private SessionManager session;
-    private ExpenseRepository repository;
+    private String uid;
     private String email;
 
     private ShapeableImageView imgAvatar;
@@ -48,12 +52,13 @@ public class ProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         session = new SessionManager(this);
-        if (!session.isLoggedIn()) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser == null) {
             finish();
             return;
         }
-        email = session.getEmail();
-        repository = ExpenseRepository.getInstance(this);
+        uid = currentUser.getUid();
+        email = currentUser.getEmail();
 
         WindowUtils.enableEdgeToEdge(this);
         setContentView(R.layout.activity_profile);
@@ -86,12 +91,15 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void loadName() {
-        String[] name = repository.getUserName(email);
-        if (name != null) {
-            etFname.setText(name[0]);
-            etLname.setText(name[1]);
-            tvProfileName.setText(getString(R.string.full_name, name[0], name[1]));
-        }
+        UserRepository.getInstance().getProfile(uid)
+                .addOnCompleteListener(this, task -> {
+                    if (!task.isSuccessful() || task.getResult() == null) return;
+                    String fname = UserRepository.firstName(task.getResult());
+                    String lname = UserRepository.lastName(task.getResult());
+                    etFname.setText(fname);
+                    etLname.setText(lname);
+                    tvProfileName.setText(getString(R.string.full_name, fname, lname));
+                });
     }
 
     private void showAvatar() {
@@ -121,13 +129,16 @@ public class ProfileActivity extends AppCompatActivity {
         }
         if (!valid) return;
 
-        if (repository.updateUserName(email, fname, lname)) {
-            session.setFirstName(fname);
-            tvProfileName.setText(getString(R.string.full_name, fname, lname));
-            Toast.makeText(this, "Name updated", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, "Couldn't update name", Toast.LENGTH_SHORT).show();
-        }
+        UserRepository.getInstance().updateName(uid, fname, lname)
+                .addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful()) {
+                        session.setFirstName(fname);
+                        tvProfileName.setText(getString(R.string.full_name, fname, lname));
+                        Toast.makeText(this, "Name updated", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Couldn't update name", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void changePassword() {
@@ -160,14 +171,24 @@ public class ProfileActivity extends AppCompatActivity {
         }
         if (!valid) return;
 
-        if (repository.changePassword(email, current, newPass)) {
-            etCurrentPass.setText("");
-            etNewPass.setText("");
-            etConfirmPass.setText("");
-            Toast.makeText(this, "Password updated", Toast.LENGTH_SHORT).show();
-        } else {
-            tilCurrentPass.setError("Current password is incorrect");
-        }
+        FirebaseUser user = auth.getCurrentUser();
+        user.reauthenticate(EmailAuthProvider.getCredential(email, current))
+                .addOnCompleteListener(this, reauthTask -> {
+                    if (!reauthTask.isSuccessful()) {
+                        tilCurrentPass.setError("Current password is incorrect");
+                        return;
+                    }
+                    user.updatePassword(newPass).addOnCompleteListener(this, updateTask -> {
+                        if (updateTask.isSuccessful()) {
+                            etCurrentPass.setText("");
+                            etNewPass.setText("");
+                            etConfirmPass.setText("");
+                            Toast.makeText(this, "Password updated", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Couldn't update password", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                });
     }
 
     private void confirmLogout() {
@@ -175,6 +196,7 @@ public class ProfileActivity extends AppCompatActivity {
                 .setTitle(R.string.logout_title)
                 .setMessage(R.string.logout_message)
                 .setPositiveButton(R.string.logout_confirm, (dlg, which) -> {
+                    auth.signOut();
                     session.logout();
                     Intent intent = new Intent(this, LoginActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
