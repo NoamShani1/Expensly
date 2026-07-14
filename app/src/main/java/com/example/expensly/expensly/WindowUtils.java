@@ -9,8 +9,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 /**
- * Modern Edge-to-Edge handling.
- * Uses the official androidx.activity.EdgeToEdge API.
+ * Hilfsklasse für modernes Edge-to-Edge Design.
+ * Stellt sicher, dass das App-Layout korrekt unter die Status- und Navigationsleisten gleitet,
+ * ohne dass wichtige Schaltflächen überdeckt werden.
  */
 public final class WindowUtils {
 

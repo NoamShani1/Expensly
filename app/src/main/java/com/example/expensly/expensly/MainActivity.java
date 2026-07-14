@@ -67,9 +67,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         WindowUtils.applyPadding(findViewById(R.id.main_root));
 
+        // Initialisierung der Daten-Repository und der Session-Verwaltung
         repository    = ExpenseRepository.getInstance(this);
         session       = new SessionManager(this);
 
+        // Überprüfung der Anmeldung via Firebase. Falls nicht angemeldet -> Login-Screen.
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             Intent intent = new Intent(this, LoginActivity.class);
             startActivity(intent);
@@ -158,8 +160,10 @@ public class MainActivity extends AppCompatActivity {
         tvBudget.setOnClickListener(v -> showBudgetDialog());
     }
 
-    // ── UI refresh ────────────────────────────────────────────────────────────
-
+    /** 
+     * Aktualisiert alle UI-Elemente mit den neuesten Daten aus der lokalen Datenbank. 
+     * Berechnet Summen, aktualisiert die Liste und das Diagramm.
+     */
     private void refreshUI() {
         List<Expense> expenses = repository.getAllExpenses();
 

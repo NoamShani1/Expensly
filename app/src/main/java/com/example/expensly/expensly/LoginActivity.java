@@ -37,12 +37,14 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Überprüfung der Sitzung: Falls der Benutzer bereits bei Firebase angemeldet ist, Dashboard öffnen.
         session = new SessionManager(this);
         if (auth.getCurrentUser() != null) {
             goToMain();
             return;
         }
 
+        // Aktiviert das Edge-to-Edge Design (Layout zieht sich hinter Status-/Navigationsleiste)
         WindowUtils.enableEdgeToEdge(this);
         setContentView(R.layout.activity_login);
         WindowUtils.applyPadding(findViewById(R.id.login_root));
@@ -81,6 +83,7 @@ public class LoginActivity extends AppCompatActivity {
 
             if (!validateInput(email, password)) return;
 
+            // Anmeldung via Firebase Authentication
             btnLogin.setEnabled(false);
             auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener(this, task -> {
@@ -88,7 +91,7 @@ public class LoginActivity extends AppCompatActivity {
                             onLoginSuccess(email);
                         } else {
                             btnLogin.setEnabled(true);
-                            tilPassword.setError("Invalid email or password");
+                            tilPassword.setError("Anmeldung fehlgeschlagen: E-Mail oder Passwort falsch");
                         }
                     });
         });

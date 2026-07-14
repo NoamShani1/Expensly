@@ -4,7 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 /**
- * Persists the logged-in user between app launches using SharedPreferences.
+ * Speichert den Status der aktuellen Benutzeranmeldung dauerhaft in den SharedPreferences.
+ * So bleibt der Benutzer auch nach dem Schließen der App eingeloggt.
  */
 public class SessionManager {
 
@@ -19,7 +20,7 @@ public class SessionManager {
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    /** Stores the logged-in user. */
+    /** Speichert die E-Mail und den Vornamen des angemeldeten Benutzers. */
     public void login(String email, String firstName) {
         prefs.edit()
                 .putString(KEY_EMAIL, email)

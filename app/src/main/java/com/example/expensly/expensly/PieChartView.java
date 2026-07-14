@@ -16,6 +16,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Eine benutzerdefinierte View, die ein animiertes Tortendiagramm zeichnet.
+ * Zeigt die Verteilung der Ausgaben und das verbleibende Budget an.
+ */
 public class PieChartView extends View {
 
     // ── Animation ─────────────────────────────────────────────────────────────
@@ -159,6 +163,10 @@ public class PieChartView extends View {
         centerTextPaint.setTextSize(oval.width() / 2f * HOLE_RATIO * 0.38f);
     }
 
+    /** 
+     * Zeichnet das Diagramm Schritt für Schritt auf den Bildschirm.
+     * Berechnet Winkel für jede Ausgabe und zeichnet Segmente.
+     */
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
